@@ -17,10 +17,19 @@ export type Macd = {
   signal: number;
 };
 
+export type Lstm = {
+  enabled: boolean;
+  sequence_length: number;
+  prediction_steps: number;
+  units: number;
+  features: string[];
+};
+
 export type Strategies = {
   symbol: string;
   rsi: Rsi;
   macd: Macd;
+  lstm: Lstm;
 };
 
 export type GetStrategyRequest = {

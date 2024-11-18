@@ -18,6 +18,7 @@ export enum Events {
 export type DataFrameEventPayload = {
   kline: Kline;
   indicators: Indicators;
+  prediction?: number;  // Add prediction field
   signal: Signal;
 };
 

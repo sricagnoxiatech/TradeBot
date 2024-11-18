@@ -46,3 +46,30 @@ func (r *Macd) Scan(value any) error {
 func (r Macd) Value() (driver.Value, error) {
 	return json.Marshal(r)
 }
+
+type Lstm struct {
+    CommonStrategyProps
+    SequenceLength  int      `json:"sequence_length"`
+    PredictionSteps int      `json:"prediction_steps"`
+    Units          int      `json:"units"`
+    Features       []string `json:"features"`
+}
+
+func (Lstm) GormDataType() string {
+    return "JSONB"
+}
+
+func (l *Lstm) Scan(value any) error {
+    return json.Unmarshal(value.([]byte), &l)
+}
+
+func (l Lstm) Value() (driver.Value, error) {
+    return json.Marshal(l)
+}
+
+type Strategies struct {
+    Symbol string `gorm:"primaryKey" json:"symbol"`
+    Rsi    Rsi    `gorm:"not null" json:"rsi"`
+    Macd   Macd   `gorm:"not null" json:"macd"`
+    Lstm   Lstm   `gorm:"not null" json:"lstm"`
+}

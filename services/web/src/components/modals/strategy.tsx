@@ -63,7 +63,7 @@ export function StrategyModal(props: StrategyModalProps): React.ReactElement {
 
   function onToggle(
     event: React.MouseEvent<HTMLElement>,
-    key: 'rsi' | 'macd'
+    key: 'rsi' | 'macd' | 'lstm'
   ): void {
     if (!strategy) {
       Notifications.error(
@@ -79,8 +79,7 @@ export function StrategyModal(props: StrategyModalProps): React.ReactElement {
       ...strategy,
       [key]: {
         ...strategy[key],
-        // @ts-expect-error: dynamically injected property
-        enabled: event.target.checked,
+        enabled: (event.target as HTMLInputElement).checked,
       },
     };
 
@@ -88,8 +87,8 @@ export function StrategyModal(props: StrategyModalProps): React.ReactElement {
   }
 
   function onStrategyChange(
-    type: 'rsi' | 'macd',
-    key: keyof Rsi | keyof Macd,
+    type: 'rsi' | 'macd' | 'lstm',
+    key: keyof Rsi | keyof Macd | string,
     value: number
   ): void {
     if (!strategy?.[type].enabled) {
@@ -137,7 +136,7 @@ export function StrategyModal(props: StrategyModalProps): React.ReactElement {
   if (!strategy) {
     content = <Loader />;
   } else {
-    const { rsi, macd } = strategy;
+    const { rsi, macd, lstm } = strategy;
 
     const panels: PanelItem[] = [
       {
@@ -230,6 +229,56 @@ export function StrategyModal(props: StrategyModalProps): React.ReactElement {
                 <NumberInput
                   value={macd.signal}
                   onChange={value => onStrategyChange('macd', 'signal', value)}
+                />
+              }
+            />
+          </div>
+        ),
+      },
+      {
+        key: 'lstm',
+        header: {
+          label: (
+            <IndicatorLabel
+              name='LSTM'
+              description='Long Short-Term Memory Neural Network'
+            />
+          ),
+          checked: lstm.enabled,
+          onClick: event => onToggle(event, 'lstm'),
+        },
+        content: (
+          <div className='font-light text-dark-gray'>
+            <ContentRow
+              label='Sequence Length'
+              content={
+                <NumberInput
+                  value={lstm.sequence_length}
+                  onChange={(value: number) =>
+                    onStrategyChange('lstm', 'sequence_length', value)
+                  }
+                />
+              }
+            />
+            <ContentRow
+              label='Prediction Steps'
+              content={
+                <NumberInput
+                  value={lstm.prediction_steps}
+                  onChange={(value: number) =>
+                    onStrategyChange('lstm', 'prediction_steps', value)
+                  }
+                />
+              }
+            />
+            <ContentRow
+              label='Units'
+              content={
+                <NumberInput
+                  value={lstm.units}
+                  onChange={(value: number) =>
+                    onStrategyChange('lstm', 'units', value)
+                  }
                 />
               }
             />

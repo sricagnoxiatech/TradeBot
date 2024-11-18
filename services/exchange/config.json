@@ -105,6 +105,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -120,6 +127,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -135,6 +149,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -150,6 +171,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -165,6 +193,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -180,6 +215,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -195,6 +237,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -210,6 +259,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -225,6 +281,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     },
     {
@@ -240,6 +303,13 @@
         "fast": 12,
         "slow": 26,
         "signal": 9
+      },
+      "lstm": {
+        "enabled": false,
+        "sequence_length": 60,
+        "prediction_steps": 1,
+        "units": 50,
+        "features": ["close", "volume", "rsi", "macd"]
       }
     }
   ]

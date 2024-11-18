@@ -1,14 +1,14 @@
 import json
-
 import pandas as pd
 import talib as ta
 from internal.events import Signal
 from utils.functions import normalize_booleans
-
+from .lstm_strategy import LSTMStrategy, LSTMConfig
 
 class Strategy:
     df = pd.DataFrame()
     strategy = None
+    lstm_models = {}
 
     def populate(self, data):
         kline = data['kline']
@@ -40,6 +40,12 @@ class Strategy:
 
         self.df = self.df.astype(types)
 
+    def get_or_create_lstm_model(self, symbol):
+        if symbol not in self.lstm_models:
+            config = LSTMConfig()
+            self.lstm_models[symbol] = LSTMStrategy(config)
+        return self.lstm_models[symbol]
+
     def get_payload(self):
         index = self.last_index()
         data = json.loads(self.df.loc[index].to_json())
@@ -53,6 +59,14 @@ class Strategy:
             signal = Signal.BUY
         elif sell and not buy:
             signal = Signal.SELL
+
+        # Get LSTM signal if enabled
+        if self.strategy.get('lstm', {}).get('enabled', False):
+            lstm_model = self.get_or_create_lstm_model(data['symbol'])
+            if len(self.df) >= lstm_model.config.sequence_length:
+                lstm_signal = lstm_model.generate_signal(self.df, data['close'])
+                if lstm_signal != "NONE":
+                    signal = lstm_signal
 
         payload = {
             'kline': {
