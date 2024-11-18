@@ -14,7 +14,8 @@ metadata:
   name: strategy
 spec:
   replicas: 1
-  strategy: {}
+  strategy:
+    type: RollingUpdate
   selector:
     matchLabels:
       app: strategy      
@@ -25,6 +26,10 @@ spec:
     spec:
       imagePullSecrets:
         - name: {{ .Values.imagePullSecret }}
+      initContainers:
+        - name: wait-for-nats
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nc -z nats 4222; do echo waiting for nats; sleep 2; done;']
       containers:
         - name: strategy
           image: {{ .Values.images.strategy }}
@@ -37,3 +42,10 @@ spec:
               value: "{{ .Values.env.nats.USER }}"
             - name: NATS_PASS
               value: "{{ .Values.env.nats.PASS }}"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"

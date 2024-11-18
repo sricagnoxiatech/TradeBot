@@ -4,6 +4,7 @@ import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
 from typing import Tuple, List, Dict, Any
 from dataclasses import dataclass
+import logging
 
 @dataclass
 class LSTMConfig:
@@ -23,8 +24,9 @@ class LSTMStrategy:
     def __init__(self, config: LSTMConfig):
         self.config = config
         self.model = None
-        self.scaler = MinMaxScaler()
+        self.scalers = {}  # Separate scaler for each feature
         self.is_trained = False
+        self.logger = logging.getLogger(__name__)
         
     def create_model(self) -> tf.keras.Model:
         model = tf.keras.Sequential([
@@ -37,15 +39,24 @@ class LSTMStrategy:
             tf.keras.layers.Dense(self.config.prediction_steps)
         ])
         
-        model.compile(optimizer='adam', loss='mse')
+        model.compile(optimizer='adam', loss='mse', metrics=['mae'])
         return model
 
     def prepare_data(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
-        # Extract features
-        data = df[self.config.features].values
+        # Initialize scalers for each feature if not exists
+        for feature in self.config.features:
+            if feature not in self.scalers:
+                self.scalers[feature] = MinMaxScaler()
+
+        # Scale features independently
+        scaled_features = []
+        for feature in self.config.features:
+            values = df[feature].values.reshape(-1, 1)
+            scaled = self.scalers[feature].fit_transform(values)
+            scaled_features.append(scaled)
         
-        # Scale the features
-        scaled_data = self.scaler.fit_transform(data)
+        # Combine scaled features
+        scaled_data = np.hstack(scaled_features)
         
         X, y = [], []
         for i in range(len(scaled_data) - self.config.sequence_length - self.config.prediction_steps + 1):
@@ -56,40 +67,58 @@ class LSTMStrategy:
 
     def train(self, df: pd.DataFrame) -> None:
         if len(df) < self.config.sequence_length + self.config.prediction_steps:
-            raise ValueError("Not enough data points for training")
+            self.logger.warning("Not enough data points for training")
+            return
 
-        X, y = self.prepare_data(df)
-        
-        self.model = self.create_model()
-        self.model.fit(X, y, 
-                      epochs=self.config.epochs, 
-                      batch_size=self.config.batch_size,
-                      verbose=0)
-        
-        self.is_trained = True
+        try:
+            X, y = self.prepare_data(df)
+            
+            self.model = self.create_model()
+            self.model.fit(X, y, 
+                         epochs=self.config.epochs, 
+                         batch_size=self.config.batch_size,
+                         validation_split=0.1,
+                         verbose=0)
+            
+            self.is_trained = True
+            self.logger.info("LSTM model training completed successfully")
+        except Exception as e:
+            self.logger.error(f"Error during LSTM training: {str(e)}")
+            self.is_trained = False
 
     def predict(self, df: pd.DataFrame) -> float:
-        if not self.is_trained:
-            raise ValueError("Model needs to be trained first")
+        if not self.is_trained or not self.model:
+            self.logger.warning("Model needs to be trained first")
+            return None
             
         if len(df) < self.config.sequence_length:
-            raise ValueError("Not enough data points for prediction")
+            self.logger.warning("Not enough data points for prediction")
+            return None
 
-        # Prepare the last sequence
-        data = df[self.config.features].values
-        scaled_data = self.scaler.transform(data)
-        last_sequence = scaled_data[-self.config.sequence_length:]
-        X = np.array([last_sequence])
-        
-        # Make prediction
-        scaled_prediction = self.model.predict(X, verbose=0)[0][0]
-        
-        # Inverse transform the prediction
-        dummy_array = np.zeros((1, len(self.config.features)))
-        dummy_array[0, 0] = scaled_prediction
-        prediction = self.scaler.inverse_transform(dummy_array)[0, 0]
-        
-        return prediction
+        try:
+            # Prepare the last sequence
+            scaled_features = []
+            for feature in self.config.features:
+                values = df[feature].values.reshape(-1, 1)
+                scaled = self.scalers[feature].transform(values)
+                scaled_features.append(scaled)
+            
+            scaled_data = np.hstack(scaled_features)
+            last_sequence = scaled_data[-self.config.sequence_length:]
+            X = np.array([last_sequence])
+            
+            # Make prediction
+            scaled_prediction = self.model.predict(X, verbose=0)[0][0]
+            
+            # Inverse transform only the prediction (first feature - close price)
+            prediction = self.scalers[self.config.features[0]].inverse_transform(
+                scaled_prediction.reshape(-1, 1)
+            )[0][0]
+            
+            return prediction
+        except Exception as e:
+            self.logger.error(f"Error during prediction: {str(e)}")
+            return None
 
     def generate_signal(self, df: pd.DataFrame, current_price: float) -> str:
         if not self.config.enabled:
@@ -97,8 +126,10 @@ class LSTMStrategy:
 
         try:
             predicted_price = self.predict(df)
+            if predicted_price is None:
+                return "NONE"
+                
             threshold = 0.001  # 0.1% price movement threshold
-            
             price_change_pct = (predicted_price - current_price) / current_price
             
             if price_change_pct > threshold:
@@ -106,18 +137,34 @@ class LSTMStrategy:
             elif price_change_pct < -threshold:
                 return "SELL"
             
-        except (ValueError, Exception) as e:
-            print(f"Error generating signal: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Error generating signal: {str(e)}")
             
         return "NONE"
 
     def save_model(self, path: str) -> None:
         if self.model:
-            self.model.save(path)
-            np.save(f"{path}_scaler.npy", self.scaler.scale_)
+            try:
+                self.model.save(path)
+                # Save scalers
+                for feature, scaler in self.scalers.items():
+                    np.save(f"{path}_scaler_{feature}.npy", scaler.scale_)
+                self.logger.info(f"Model saved successfully to {path}")
+            except Exception as e:
+                self.logger.error(f"Error saving model: {str(e)}")
 
     def load_model(self, path: str) -> None:
-        if tf.io.gfile.exists(path):
-            self.model = tf.keras.models.load_model(path)
-            self.scaler.scale_ = np.load(f"{path}_scaler.npy")
-            self.is_trained = True
+        try:
+            if tf.io.gfile.exists(path):
+                self.model = tf.keras.models.load_model(path)
+                # Load scalers
+                for feature in self.config.features:
+                    scaler_path = f"{path}_scaler_{feature}.npy"
+                    if tf.io.gfile.exists(scaler_path):
+                        self.scalers[feature] = MinMaxScaler()
+                        self.scalers[feature].scale_ = np.load(scaler_path)
+                self.is_trained = True
+                self.logger.info(f"Model loaded successfully from {path}")
+        except Exception as e:
+            self.logger.error(f"Error loading model: {str(e)}")
+            self.is_trained = False

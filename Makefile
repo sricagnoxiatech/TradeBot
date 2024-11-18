@@ -1,19 +1,22 @@
 NAMESPACE=hypertrade
+GITHUB_USERNAME=sricagnoxiatech
 
 dev:
 	scripts/prepare.sh development
-	skaffold dev --profile=development --tail
+	skaffold dev --profile=development --tail --default-repo=ghcr.io/$(GITHUB_USERNAME)
 
 stop:
 	minikube stop
 
 build:
-	skaffold build --profile production
+	scripts/prepare.sh production
+	skaffold build --profile production --default-repo=ghcr.io/$(GITHUB_USERNAME)
 
 prod:
-	skaffold run --profile production
+	scripts/prepare.sh production
+	skaffold run --profile production --default-repo=ghcr.io/$(GITHUB_USERNAME)
 
-connect:
+	connect:
 	doctl kubernetes cluster kubeconfig save $(NAMESPACE)-cluster
 	kubectl port-forward svc/proxy 8080:8080 --namespace=$(NAMESPACE)
 

@@ -51,6 +51,23 @@ if [[ "$ENVIRONMENT" == "development" ]]; then
   fi
 fi
 
+if ! docker info > /dev/null 2>&1; then
+  echo "[x] Error: Docker daemon is not running"
+  exit 1
+fi
+
+# Check if GITHUB_PAT is set
+if [[ -z "${GITHUB_PAT}" ]]; then
+  echo "[x] Error: GITHUB_PAT environment variable is not set"
+  echo "Please set your GitHub Personal Access Token:"
+  echo "export GITHUB_PAT=your_token_here"
+  exit 1
+fi
+
+# Login to GitHub Container Registry
+echo "[*] Logging in to GitHub Container Registry"
+echo "${GITHUB_PAT}" | docker login ghcr.io -u sricagnoxiatech --password-stdin
+
 SECRETS_PATH=infrastructure/k8s/env.yaml
 WEB_ENV_PATH=services/web/.env
 

@@ -1,14 +1,18 @@
-import { Chart, dispose, init, KLineData } from 'klinecharts';
-import difference from 'lodash/difference';
-import map from 'lodash/map';
-import React, { useEffect, useState } from 'react';
-import { Indicators, TechnicalIndicators } from '../../config/indicators';
+import React from 'react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend,
+  ResponsiveContainer 
+} from 'recharts';
 import { useDataFrameStore } from '../../store/dataframe';
 import { useConfigsStore } from '../../store/configs';
 import * as animated from '../ui/animated';
 import { Loader } from '../ui/loader';
-
-const CHART_ID = 'kline-chart';
 
 export enum ChartType {
   CANDLE = 'candle_solid',
@@ -23,120 +27,98 @@ export enum AxisType {
 interface KlineChartProps {
   type: ChartType;
   axis: AxisType;
-  primary: TechnicalIndicators[];
-  secondary: TechnicalIndicators[];
+  primary: any[];
+  secondary: any[];
 }
 
-const options = {
-  candle: {
-    tooltip: {
-      labels: ['T: ', 'O: ', 'C: ', 'H: ', 'L: ', 'V: '],
-    },
-  },
-  yAxis: {
-    type: 'percentage',
-  },
-  technicalIndicator: {
-    lastValueMark: {
-      show: true,
-      text: {
-        show: true,
-      },
-    },
-  },
-};
-
 export function KlineChart(props: KlineChartProps): React.ReactElement {
-  const { type, axis, primary, secondary } = props;
-
   const getActiveConfig = useConfigsStore(state => state.getActiveConfig);
   const loading = useDataFrameStore(state => state.loading);
-  const [chart, setChart] = useState<Chart | null>(null);
+  const get = useDataFrameStore(state => state.get);
 
-  useEffect(() => {
-    const chart = init(CHART_ID, options);
+  const { symbol } = getActiveConfig();
+  const data = get(symbol);
 
-    const unsubscribe = useDataFrameStore.subscribe(({ get }): void => {
-      const { symbol } = getActiveConfig();
-      const data = get(symbol);
-
-      const klineData: KLineData[] = map(
-        data,
-        ({ kline: { open, close, high, low, volume, time } }) => ({
-          open,
-          close,
-          high,
-          low,
-          volume,
-          timestamp: time,
-        })
-      );
-
-      chart?.applyNewData(klineData);
-    });
-
-    setChart(chart);
-
-    return () => {
-      dispose(CHART_ID);
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    const options = {
-      candle: {
-        type,
-      },
-    };
-
-    chart?.setStyleOptions(options);
-  }, [chart, type]);
-
-  useEffect(() => {
-    const options = {
-      yAxis: {
-        type: axis,
-      },
-    };
-
-    chart?.setStyleOptions(options);
-  }, [chart, axis]);
-
-  useEffect(() => {
-    const getSubId = (type: string) => `sub-${type}`;
-    const getMainId = () => 'candle_pane';
-
-    setIndicators(primary, true, getMainId);
-    setIndicators(secondary, false, getSubId);
-  }, [chart, primary, secondary]);
-
-  function setIndicators(
-    indicators: TechnicalIndicators[],
-    stack: boolean,
-    getId: (type: string) => string
-  ): void {
-    const all = Object.keys(Indicators);
-    const diff = difference(all, map(indicators, 'name'));
-
-    diff.forEach(name => {
-      chart?.removeTechnicalIndicator(getId(name));
-    });
-
-    indicators.forEach(indicator => {
-      chart?.createTechnicalIndicator(indicator, stack, {
-        id: getId(indicator.name),
-      });
-    });
-  }
+  const chartData = data.map(({ kline, prediction }) => ({
+    timestamp: kline.time,
+    open: kline.open,
+    high: kline.high,
+    low: kline.low,
+    close: kline.close,
+    volume: kline.volume,
+    prediction: prediction
+  }));
 
   return (
     <>
-      <animated.Div
-        id={CHART_ID}
-        className='w-full'
-        style={{ height: '92%' }}
-      />
+      <animated.Div className='w-full h-[92%]'>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{
+              top: 20,
+              right: 30,
+              left: 20,
+              bottom: 10
+            }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+            
+            <XAxis 
+              dataKey="timestamp"
+              tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+              className="text-sm" 
+            />
+            
+            <YAxis 
+              yAxisId="price"
+              domain={['auto', 'auto']}
+              className="text-sm"
+            />
+            
+            <YAxis 
+              yAxisId="volume"
+              orientation="right"
+              domain={['auto', 'auto']}
+              className="text-sm"
+            />
+            
+            <Tooltip
+              contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc' }}
+              labelFormatter={(value) => new Date(value).toLocaleString()}
+            />
+            
+            <Legend />
+            
+            <Line
+              yAxisId="price"
+              type="monotone"
+              dataKey="close"
+              stroke="#2563eb"
+              dot={false}
+              name="Price"
+            />
+            
+            <Line
+              yAxisId="price"
+              type="monotone"
+              dataKey="prediction"
+              stroke="#ef4444"
+              strokeDasharray="5 5"
+              dot={false}
+              name="Prediction"
+            />
+            
+            <Line
+              yAxisId="volume"
+              type="bar"
+              dataKey="volume"
+              stroke="#6b7280"
+              fill="#6b7280"
+              name="Volume"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </animated.Div>
       <Loader className='absolute top-0 left-0' visible={loading} />
     </>
   );
